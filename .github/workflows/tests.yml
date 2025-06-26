@@ -1,0 +1,46 @@
+name: Tests with CTRF Reporter
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests with JUnit output
+      run: |
+        npm test -- --reporters=default --reporters=jest-junit
+      continue-on-error: true  # Important to continue after test failures
+
+    - name: Generate CTRF Report
+      uses: ctrf-io/github-test-reporter@v1
+      with:
+        results: junit.xml
+        input-format: junit
+        output-directory: test-report
+        output-name: test-results
+
+    - name: Upload Test Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-report
+        path: test-report/test-results.html
+
+    - name: Add Test Summary
+      run: |
+        echo "### 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| ✅ Passed | $(grep -o 'testsuite.*failures="0"' junit.xml | wc -l) |" >> $GITHUB_STEP_SUMMARY
+        echo "| ❌ Failed | $(grep -c 'testsuite.*failures="[1-9]' junit.xml) |" >> $GITHUB_STEP_SUMMARY
+        echo "[📊 Download Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
