@@ -10,7 +10,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: 20
 
@@ -20,8 +20,9 @@ jobs:
     - name: Run tests with JUnit output
       run: |
         npm test -- --reporters=default --reporters=jest-junit
-      continue-on-error: true  # Important to continue after test failures
+      continue-on-error: true
 
+    # Updated to use v4 of the test reporter
     - name: Generate CTRF Report
       uses: ctrf-io/github-test-reporter@v1
       with:
@@ -30,17 +31,21 @@ jobs:
         output-directory: test-report
         output-name: test-results
 
+    # Updated to upload-artifact@v4
     - name: Upload Test Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-report
         path: test-report/test-results.html
 
     - name: Add Test Summary
       run: |
+        PASSED=$(grep -c 'testsuite.*failures="0"' junit.xml || true)
+        FAILED=$(grep -c 'testsuite.*failures="[1-9]' junit.xml || true)
+        
         echo "### 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
         echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
         echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-        echo "| ✅ Passed | $(grep -o 'testsuite.*failures="0"' junit.xml | wc -l) |" >> $GITHUB_STEP_SUMMARY
-        echo "| ❌ Failed | $(grep -c 'testsuite.*failures="[1-9]' junit.xml) |" >> $GITHUB_STEP_SUMMARY
+        echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+        echo "| ❌ Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
         echo "[📊 Download Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
